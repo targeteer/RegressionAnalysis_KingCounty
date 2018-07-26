@@ -8,6 +8,8 @@ library(parsedate)
 library(lubridate)
 library(RColorBrewer)
 
+getwd()
+setwd("/Users/DK/Documents/programming/Github/Regression Analysis/rawdata//")
 data <- read.csv("kc_house_data.csv", header = TRUE)
 
 
@@ -42,7 +44,7 @@ barplot(table(analysis$date.month),
 color.palette <- RColorBrewer::brewer.pal(n=9, name = "PuBu")
 
 #년월과 거래량의 관계 (여름~가을에 집중)
-barplot(table(analysis$date.yearmonth),
+barplot(table((analysis$date.yearmonth)),
         col = color.palette,
         main = "House Sales in King County by year",
         xlab = "Year-Month",
@@ -108,4 +110,36 @@ for(i in 3:7){
     barplot(table(analysis[  ,i]),
          main = paste0("Barplot of ", colnames(analysis)[i] ))
 }
+
+##################################
+# Check correlation between variables
+cor(analysis) 
+
+analysis.numerics <- analysis[,c(2,3,4,5,6,7,9,10,11,13,14)]
+
+# one-to-one correlation of numeric variables
+cor(analysis$price, analysis[,c(2,3,4,5,6,7,9,10,11,14)], method = "pearson")
+# bedrooms : 0.3083
+# bathrooms : 0.5251 ****
+# sqft_living : 0.7020 ****
+# sqft_lot : 0.0897
+# floors : 0.2567
+# date.year : 0.00356
+# date.month : -0.0100
+# date.day : -0.0147
+# totalrooms : 0.4663 ****
+
+# Check correlations (as scatterplots), distribution and print corrleation coefficient 
+ggpairs(analysis.numerics[,c("price","bathrooms", "sqft_living","totalrooms")]) 
+
+# Nice visualization of correlations
+ggcorr(analysis.numerics, method = c("everything", "pearson")) 
+
+
+
+
+
+
+
+
 
