@@ -1,106 +1,297 @@
 #1) histogram은 hist(table(x))여야 그려지고 2) correlation matrix는 cor(data)를 넣으시면 되고, 3) 상관분석#(correlation test)는 cor.test(y,x, method="pearson")입니다!
-setwd("c:/R/FastCampus/project/")
-
+setwd("C:/Users/Master/Documents/rds/RegressionAnalysis_KingCounty/Cho")
+install.packages("nparcomp")
 
 library(nortest) # 데이터가 5000개 이상.
 library(dplyr)
-
+library(nparcomp)
+library(ggplot2)
 # 파일 읽기
-par(mfrow=c(2,2))
+par(mfrow=c(1,1))
 
 
 ###################################################################################
-house <- read.csv(file   = "c:/R/FastCampus/project/kc_house_data.csv",
+house <- read.csv(file   = "kc_house_data.csv",
                  header = TRUE)
 portion <- house[,c(3,9:12)]
-###################################################################################
+View(portion)
+################################################################################
 
-# 각 variable별로 histogram 작성
+#### 변수
+
+# - 종속변수 : "price"
+# - 독립변수 
+# 질적자료 : "waterfront", "condition", "grade" 
+# 양적자료 : "view"
+# 특이사항 : "condition"과 "grade"는 질적자료와 양적자료 성질을 동시에 갖음.
+#################################################################################
+
+
+## 질적변수 빈도와 백분율, 막대그래프와 원그래프
+# waterfront
+table(portion$waterfront) # 빈도
+prop.table(table(portion$waterfront)) #백분율
+barplot(table(portion$waterfront), # 막대그래프
+        main = "waterfont freq",
+        ylim = c(0,25000))
+pie(table(portion$waterfront), # 원그래프
+    radius = 1,
+    clockwise = TRUE,
+    init.angle = 90)
+
+# condition
+portion$condition.add <- ifelse(portion$condition == 1,
+                             "매우나쁨", 
+                              ifelse(portion$condition == 2,
+                                     "나쁨",
+                                     ifelse(portion$condition == 3,
+                                            "보통",
+                                            ifelse(portion$condition == 4,
+                                                   "좋음",
+                                                   ifelse(portion$condition == 5,
+                                                      "매우좋음", "해당없음")))))
+
+
+
+sort(table(portion$condition), decreasing = TRUE) # 빈도
+prop.table(table(portion$condition)) #백분율
+barplot(table(portion$condition), # 막대그래프
+        main = "condition freq",
+        ylim = c(0,15000))
+
+
+a <- sort(table(portion$condition),decreasing = TRUE)
+pct <- round(a/sum(a)*100,1)
+lab1 <- c("보통", "좋음", "매우좋음", "나쁨", "매우나쁨")
+lab2 <- paste(lab1,"\n",pct,"%")
+
+pie(a, # 원그래프
+    radius = 1,
+    clockwise = TRUE,
+    init.angle = 90,
+    labels = lab2)
+
+
+
+# grade
+portion$grade.add <- portion$grade
+
+
+table(portion$grade) # 빈도
+prop.table(table(portion$grade)) #백분율
+barplot(table(portion$grade), # 막대그래프
+        main = "grade freq",
+        ylim = c(0,10000))
+
+pie(table(portion$grade), # 원그래프
+    radius = 1,
+    clockwise = TRUE,
+    init.angle = 90)
+
+portion$grade.add <- ifelse(portion$grade== 1,
+                                "1점", 
+                                ifelse(portion$grade == 2,
+                                "2점",
+                                ifelse(portion$grade == 3,
+                                "3점",
+                                ifelse(portion$grade == 4,
+                                "4점",
+                                ifelse(portion$grade == 5,
+                                "5점",
+                                ifelse(portion$grade == 6,
+                                "6점",
+                                ifelse(portion$grade == 7,
+                                "7점",
+                                ifelse(portion$grade == 8,
+                                "8점",
+                                ifelse(portion$grade == 9,
+                                "9점",
+                                ifelse(portion$grade == 10,
+                                "10점",
+                                ifelse(portion$grade == 11,
+                                "11점",
+                                ifelse(portion$grade == 12,
+                                "12점",
+                                ifelse(portion$grade == 13,
+                                "13점","해당없음")))))))))))))
+
+View(portion)
+
+## 양적변수 histogram 및 상자그림(이상치)
+# price구간 나누기
+interval.count <- 1 + 3.3*log10(length(house$price))
+price.range <- diff(range(house$price))
+interval.wide <- price.range/interval.count
+min(house$price)
+max(house$price)
+
+# price
+
+hist(portion$price,
+     ylim = c(0, 14000),
+     breaks = seq(from = 0, to = 800000, by = 500000))
+
+mode(portion$waterfront)
+portion$waterfront <- ifelse(portion$waterfront == 0,
+                             "No-waterfront", 
+                             "Yes-waterfront")
+boxplot(portion$price)
+boxplot(portion$price ~ portion$waterfront) # price와 waterfront의 상자그림
+
+# view
+hist(portion$view)
+boxplot(portion$view)
+
+
+
 
 variables <- c("waterfront","view","condition","grade")
 for( i in 1:4 ){
   hist(table(portion[,i]), main = paste("Histogram of", variables[i]))
 }
-###################################################################################
 
-# 귀무가설 : View(waterfront)의 유무와 상관없이 price에는 차이가 없다.(mu1 = mu2)
-# 대립가설 : View(waterfront) 유무가 price에 영향을 미친다.(mu1>mu2)
-
-
-house$view.group <- ifelse(house$view == 0,
-                             "0", 
-                             "1")
-
-by(house$price, house$view.group, ad.test) # 정규성x
-
-wilcox.test(house$price ~ house$view.group, # p-value : 1 이므로 대립가설 채택
-            alternative = "greater")
-
-# waterfront 관련
-
-
-house$waterfront.group <- ifelse(house$waterfront == 0,
-                           "0", 
-                           "1")
-by(house$price, house$waterfront.group, ad.test) # 정규성x
-
-wilcox.test(house$price ~ house$waterfront.group, # p-value : 1 이므로 대립가설 채택
-            alternative = "greater")
-
-
-
-
-# condition, grade 높을 수록 좋음.
-house$condition.group <- ifelse(house$condition == 1,
-                                 "1", 
-                                 "2")
-by(house$price, house$condition.group, ad.test) # 정규성x
-
-wilcox.test(house$price ~ house$condition.group, # p-value : 1 이므로 대립가설 채택
-            alternative = "greater")
-
-
-house$grade.group <- ifelse(house$grade == 7,
-                                "7", 
-                                "8")
-
-by(house$price, house$grade.group, ad.test) # 정규성x
-
-wilcox.test(house$price ~ house$grade.group, # p-value : 1 이므로 대립가설 채택
-            alternative = "greater")
-
-
-# waterfront랑 view가 0이 아닌 값들을 모아서 히스토그램
-par(mfrow=c(2,1))
 
 ###################################################################################
-
-is_waterfront <- dplyr::select(house, waterfront) %>%
-  dplyr::filter(waterfront != 0)
-hist(table(is_waterfront))
+# Price와 waterfront(0,1) TwoSample Test
 
 
+# 귀무가설 : waterfront의 유무와 상관없이 price에는 차이가 없다.(mu1 = mu2)
+# 대립가설 : waterfront 유무가 price에 영향을 미친다.(mu1>mu2)
 
-is_view <- dplyr::select(house, view) %>%
-  dplyr::filter(view != 0)
-hist(table(is_view))
 
-table(house$waterfront)
+by(portion$price, portion$waterfront, ad.test) # 정규성x
+
+wilcox.test(portion$price ~ portion$waterfront, # p-value : 1 이므로 귀무가설 채택
+            alternative = "greater")
+
+# waterfront의 유무는 price에 통계적으로 유의한 차이는 없는 것으로 나타났다.
+
 ###################################################################################
+# Price와 Condition(1~5) Anova Test
 
-# scatterplot matrix
-scatterplot_matrix <- pairs(portion)
 
-## 보면 sqft_above와 sqft_basement와 price는 어느 정도의 선형관계를 보인다. (Y와 X간)
-## sqft_above와 sqft_basement도 어느 정도의 선형관계를 보인다.
+# 귀무가설 : 집 상태에 따라(Condition) price는 차이가 없다.
+# 대립가설 :집 상태에 따라(Condition) price는 차이가 있다.
 
-# correlation matrix
-correlation_matrix <- cor(portion)
 
-# correlation test
-cor.test(portion$waterfront, portion$view, method="pearson") # 유의하다(significant)
-cor.test(portion$view, portion$price, method="pearson") # 유의하다(significant)
+by(portion$price, portion$condition, ad.test) # 정규성x
 
-# 회귀분석은 계수(coefficient) 정확한 추정을 위해 OLS를 가정하는데, 이 때의 가정 중
-# 하나는 독립변수(X)들끼리 독립이라는 것이다. 이로 볼 때, yr_built와 sqft_above가
-# 상관성이 있다는 것은 multicollinearity(다중공선성) 문제가 발생할 수 있다.
+kruskal.test(price ~ condition, data = portion) # p-value : 0.000 이므로 대립가설 채택
+
+# condition에따라 Price 통계적으로 유의한 차이가 있는 것으로 나타났다.
+#(chi-squared = 260.85, p<0.001)
+
+# nparcomp::nparcomp(price ~ condition, ---- 에러
+#                    data = portion,
+#                    type = "Tukey")
+
+###################################################################################
+# Price와 grade(1~13) Anova Test
+
+
+# 귀무가설 : 등급에 따라(grade) price는 차이가 없다.
+# 대립가설 : 등급에 따라(grade) price는 차이가 있다.
+
+
+
+# by(portion$price, portion$grade, ad.test) ---- 에러
+
+kruskal.test(price ~ grade, data = portion) # p-value : 0.00 이므로 대립가설 채택
+
+# grade는 price에 통계적으로 유의한 차이는 있는 것으로 나타났다.
+#(chi-squared = 9694.8, P<0.001)
+
+   
+#  nparcomp::nparcomp(price ~ grade, ---- 에러
+#                     data = portion,
+#                     type = "Tukey")
+
+###################################################################################
+# Price와 view(1~4) CorrelationAnalysis ---- 과연 정확한 분석은??
+
+# 산점도
+
+ggplot2::ggplot(data = portion,
+                mapping = aes(x = view, y = price)) + 
+  geom_point(aes(col = "red")) +
+  theme_classic() +
+  labs(title = "Scatter Plot of view & price",
+       x     = "sum of view",
+       y     = "price of house") +
+  theme(plot.title = element_text(size = 20), # 제목들 크기
+        axis.title.x    = element_text(size = 10),
+        axis.title.y   = element_text(size = 10))
+# 결론 : price와 view간의 연관성은 없어 보인다.
+
+# 두 변수의 상관계수
+cor(portion$price, portion$view, method = "pearson")
+# 결론 : 0.397, 약한관련성이 있다.
+
+
+
+# 상관분석
+# 귀무가설 : price와 view 간에 관련성이 없다.
+# 대립가설 : price와 view 간에 관련성이 있다.
+
+ad.test(portion$price)
+ad.test(portion$view) # 정규분포를 따르지 않음
+
+cor.test(portion$price, portion$view, method = "kendall")
+cor.test(portion$price, portion$view, method = "spearman")
+
+# 결론 : 유의확률이 0.000 이므로 유의수준 0.05에서
+# price와 view 간에는 통계적으로 유의한
+# 양의 상관관계가 있는 것으로 나타났다.
+
+###################################################################################
+# 선형회귀분석(price와 view가 양적 변수 2개 존재)
+
+PriceView.lm <- lm(price ~ view, data = portion)
+PriceView.lm
+summary(PriceView.lm)
+
+# 1단계 : 회귀모형은 타당
+# F-statistic: 4050 on 1 and 21611 DF,  p-value: 1.49e-12
+# 결론 : 유의확률이 0.000 이므로 유의수준 0.05에서
+# 회귀모형은 통계적으로 타당하다.
+
+# 2단계 : 독립변수는 종속변수에게 영향을 주는가?
+# view는 price에 통계적으로 유의한 영향을 주는 것으로 나타났다.
+# ( t = 63.64, p<0.001)
+
+# 3단계 : 독립변수는 종속변수에게 어떠한 영향을 주는가?
+#          Estimate     
+# view     190335
+# 회귀계수(beta1 : Coefficient of Regression) : 190335
+# view가 1개씩 증가하면 price는 약 190335 정도 증가시킨다
+
+# 4단계 : 회귀모형의 설명력
+# Multiple R-squared:  0.1578
+# view가 price의 다름을 약 15.78% 정도 설명하고 있다.
+
+
+# 5단계 : 예측(Prediction)
+predict(PriceView.lm, newdata = data.frame(view = 1))
+predict(PriceView.lm, newdata = data.frame(view = c(1,2,3,4)))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
