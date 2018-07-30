@@ -11,7 +11,7 @@ library(RColorBrewer)
 getwd()
 setwd("/Users/DK/Documents/programming/Github/Regression Analysis/rawdata//")
 data <- read.csv("kc_house_data.csv", header = TRUE)
-
+data
 
 # 개인별 분석 범위
 analysis <- data[,c(2,3:8)]
