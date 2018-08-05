@@ -1,10 +1,3 @@
-# data_analysis2
-# analysis on correlation of all variable regarding house price
-# reference to https://www.kaggle.com/amitdhakre13/eda-linear-regression-k-fold-cv-adj-r2-0-87/notebook
-
-
-
-# Quick display of two cabapilities of GGally, to assess the distribution and correlation of variables 
 install.packages("GGally")
 install.packages("corrplot")
 install.packages("caret")
@@ -26,14 +19,12 @@ library(pacman)
 pacman:: p_load(Metrics, car, corrplot, caTools, ggplot2, DAAG)
 
 rm(list = ls())
-# data removed or not using
-# date, sqft_lot, condition, long, sqft_lot15
 
-## correlation of all variables
+# 데이터 불러오기
 setwd("/Users/DK/Documents/programming/Github/Regression Analysis/rawdata/")
 data <- read.csv("kc_house_data.csv")
 
-
+# test, train 셋으로 나누기
 data.index <- caret::createDataPartition(data$price, p = 0.8)
 data.train <- data[unlist(data.index) , ]
 data.test  <- data[-unlist(data.index) ,]
@@ -44,6 +35,7 @@ data.test$price <- log(data.test$price)
 
 data.train$date = substr(data.train$date, 1, 6)
 data.test$date = substr(data.test$date, 1, 6)
+
 # 일단 data를 숫자로바꿔야 상관성 확인가능
 data.train$date = as.numeric(as.character(data.train$date))
 data.test$date = as.numeric(as.character(data.test$date))
@@ -54,7 +46,7 @@ data.test$id <- NULL
 
 corr = cor(data.train[, 1:20])
 corrplot::corrplot(corr, method = "color", cl.pos = 'n', rect.col = "black",  tl.col = "black", addCoef.col = "black", number.digits = 2, number.cex = 0.50, tl.cex = 0.9, cl.cex = 1, col = colorRampPalette(c("green4","white","red"))(100))
-# Corrleations higher than 0.5
+# 상관계수 0.5이상
 # bathrooms, sqft_living, grde, sqft_abve, sqft_living 15
 # bathrooms : 0.55
 # sqft_living : 0.7
@@ -62,7 +54,7 @@ corrplot::corrplot(corr, method = "color", cl.pos = 'n', rect.col = "black",  tl
 # sqft_above : 0.6
 # sqft_living15 : 0.62
 
-# remove all the variables below 0.1
+# 상관계수 0.1이하 삭제
 data.train$sqft_lot = NULL
 data.train$condition = NULL
 data.train$long = NULL
@@ -72,19 +64,11 @@ data.test$sqft_lot = NULL
 data.test$condition = NULL
 data.test$long = NULL
 data.test$sqft_lot15 = NULL
-# 위도와 우편번호는 factor 와 corplot사용해보자
+# 위도와 우편번호는 factor 와 corplot사용해보자(위도는 상관성이 조금있고 우편번호는 지역을 나타내니 지역분류를 위해 일단 냅두자)
 
-# lm model for all variables
+# 상관계수 높은 변수로 모델 생성
 housesales.lm <- lm(price ~ bathrooms + sqft_living + grade + sqft_above + sqft_living15, data = data.train)
 summary(housesales.lm)
-
-
-# "date"          "price"         "bedrooms"      "bathrooms"    
-# [5] "sqft_living"   "sqft_lot"      "floors"        "waterfront"   
-# [9] "view"          "condition"     "grade"         "sqft_above"   
-# [13] "sqft_basement" "yr_built"      "yr_renovated"  "zipcode"      
-# [17] "lat"           "long"          "sqft_living15" "sqft_lot15"   
-# > 
 
 # 각 변수 별 R^2 검사
 housesales.lm.all <- lm(price ~ ., data= data.train)
@@ -137,10 +121,10 @@ summary(housesales.lm.all)
 # sqft_above sqft_living15 
 # 2.153474      2.153474 
 
-# sqft_above 제거(가장 R^2높은 sqft_living의 vif를 줄이기 위해, 그리고 상관성이 높은 변수 배제)
+# 위 결과로 sqft_above 제거(가장 R^2높은 sqft_living의 vif를 줄이기 위해, 그리고 상관성이 높은 변수 배제)
 vif(housesales.lm.all)
 
-# analysis of other variables using factorization
+# factor화를 통해 변수 사용여부 확인
 colnames(data.train)
 
 # 1. bedrooms(keep it as factor)
@@ -254,18 +238,18 @@ housesales.lm.final <- lm(price ~ ., data= data.train)
 summary(housesales.lm.final)
 # 1. 회귀분석은 타당한가(타당함)
 # F-statistic:  1558 on 93 and 21517 DF,  p-value: < 2.2e-16
+# 결론: 타당함
 
-# 2. Does each independent variable influence price?(스킵)
+# 2. 독립변수별 영향력 확인?(스킵)
 
 # 3. prediction(예측은 나중에 밑에서)
 
-# variable selection : (사실 이게 잘...여기서는 안쓰이는듯)
+# 변수선택 : (사실 이게 잘...여기서는 안쓰이는듯)
 # 1) FSB
 housesales.fsb <- step(housesales.lm.final, direction = "forward")
 
 # 2) BEM
 housesales.bem <- step(housesales.lm.final, direction = "backward")
-
 
 # 3) SSM
 housesales.ssm <- step(housesales.lm.final, direction = "both")
@@ -290,19 +274,18 @@ car::durbinWatsonTest(housesales.lm.final)
  # lag Autocorrelation D-W Statistic p-value
 # 1      0.01152357      1.976888   0.076
 
-
 # 3. 등분산성 검정
 car::ncvTest(housesales.lm.final)
 # Chisquare = 1.420945    Df = 1     p = 0.2332479 
 
-# 4. 에러에 대한 전반적인 가정에 검정.
+# 4. 에러에 대한 전반적인 가정에 검정.(예 뭐..결과가 이런데 어쩌겠음..ㅠ)
 summary(gvlma::gvlma(housesales.lm.final))
-#                         Value   p-value                   Decision
-#     Global Stat        7570.05 0.0000000 Assumptions NOT satisfied!
-#     Skewness            218.54 0.0000000 Assumptions NOT satisfied!
-#     Kurtosis           7059.29 0.0000000 Assumptions NOT satisfied!
-#     Link Function       280.34 0.0000000 Assumptions NOT satisfied!
-#     Heteroscedasticity   11.89 0.0005655 Assumptions NOT satisfied!
+# Value   p-value                   Decision
+# Global Stat        5662.46 0.0000000 Assumptions NOT satisfied!
+#     Skewness            183.29 0.0000000 Assumptions NOT satisfied!
+#     Kurtosis           5254.03 0.0000000 Assumptions NOT satisfied!
+#     Link Function       214.09 0.0000000 Assumptions NOT satisfied!
+#     Heteroscedasticity   11.04 0.0008903 Assumptions NOT satisfied!
 
 
 # 예측
@@ -310,3 +293,5 @@ data.predict <- predict(housesales.lm.final, newdata = data.test)
 
 summary(data.predict)
 summary(data.test$price)
+
+#아직 정확성 예측 안했습니다.
