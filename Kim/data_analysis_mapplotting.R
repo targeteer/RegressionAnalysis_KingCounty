@@ -12,3 +12,6 @@ long <- data$long
 map <- leaflet() %>% 
     addTiles() %>% 
     addCircleMarkers(lng = long, lat = lati, radius = 0.01, clusterOptions = TRUE) %>% markerClusterOptions(showCoverageOnHover = TRUE, spiderLegPolylineOptions = list(weight = 1.5, color = "#222", opacity = 0.5))
+
+
+

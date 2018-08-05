@@ -38,15 +38,19 @@ data.index <- caret::createDataPartition(data$price, p = 0.8)
 data.train <- data[unlist(data.index) , ]
 data.test  <- data[-unlist(data.index) ,]
 
-# normalized skewed price data (안하면 결과가 엉망진창)
+# price 변수 로그화 (안하면 결과가 엉망진창)
 data.train$price <- log(data.train$price)
+data.test$price <- log(data.test$price)
 
 data.train$date = substr(data.train$date, 1, 6)
-# Converting it to numeric as we can only use numeric values for corrleation
+data.test$date = substr(data.test$date, 1, 6)
+# 일단 data를 숫자로바꿔야 상관성 확인가능
 data.train$date = as.numeric(as.character(data.train$date))
+data.test$date = as.numeric(as.character(data.test$date))
 
-# delete id column
+# id 삭제(어차피 필요없음)
 data.train$id <- NULL
+data.test$id <- NULL
 
 corr = cor(data.train[, 1:20])
 corrplot::corrplot(corr, method = "color", cl.pos = 'n', rect.col = "black",  tl.col = "black", addCoef.col = "black", number.digits = 2, number.cex = 0.50, tl.cex = 0.9, cl.cex = 1, col = colorRampPalette(c("green4","white","red"))(100))
@@ -63,6 +67,11 @@ data.train$sqft_lot = NULL
 data.train$condition = NULL
 data.train$long = NULL
 data.train$sqft_lot15 = NULL
+
+data.test$sqft_lot = NULL
+data.test$condition = NULL
+data.test$long = NULL
+data.test$sqft_lot15 = NULL
 # 위도와 우편번호는 factor 와 corplot사용해보자
 
 # lm model for all variables
@@ -143,9 +152,15 @@ print(subset(data.train, data.train$bedrooms > 10))
 data.train <- data.train[data.train$bedrooms <= 10,]
 data.train$bedrooms <- as.factor(data.train$bedrooms)
 
+data.test <- data.test[data.test$bedrooms <= 10,]
+data.test$bedrooms <- as.factor(data.test$bedrooms)
+
 # 2. floors(keep it as factor)
 boxplot(data.train[,"price"] ~ data.train[,"floors"], main = "Price vs floors")
 data.train$floors <- as.factor(data.train$floors)
+
+data.test$floors <- as.factor(data.test$floors)
+
 
 # 3. waterfront
 boxplot(data.train[,"price"] ~ data.train[,"waterfront"], main = "Price vs waterfront")
@@ -162,6 +177,8 @@ data.train %>%
 # 평균값의 차이가 크니 factor로 저장
 data.train$waterfront <- as.factor(data.train$waterfront)
 
+data.test$waterfront <- as.factor(data.test$waterfront)
+
 # 4. view
 boxplot(data.train[,"price"] ~ data.train[,"view"], main = "Price vs floor")
 for(i in 0:4){
@@ -177,15 +194,21 @@ for(i in 0:4){
 # factor로 저장
 data.train$view <- as.factor(data.train$view)
 
+data.test$view <- as.factor(data.test$view)
+
 # 5. sqft_above
 boxplot(data.train[,"price"] ~ data.train[,"sqft_above"],main = "Price vs sqft_above")
 # factor하기에 변수의 폭이 넓고 위에서 다중공산성 문제가 있었으므로 제외
 data.train$sqft_above = NULL
 
+data.test$sqft_above = NULL
+
 # 6. sqft_basement
 boxplot(data.train[,"price"] ~ data.train[,"sqft_basement"], main = "Price vs sqft_basement")
 # price에 영향이 없으므로 제외
 data.train$sqft_basement = NULL
+
+data.test$sqft_basement = NULL
 
 
 # 7. yr_built
@@ -193,10 +216,15 @@ boxplot(data.train[,"price"] ~ data.train[,"yr_built"], main = "Price vs yr.buil
 # price에 영향이 없으므로 제외
 data.train$yr_built = NULL
 
+data.test$yr_built = NULL
+
+
 # 8. yr_renovated
 boxplot(data.train[,"price"] ~ data.train[,"yr_renovated"], main = "Price vs yr.renovated")
 # price에 영향이 없으므로 제외
 data.train$yr_renovated = NULL
+
+data.test$yr_renovated = NULL
 
 # 9. zipcode
 boxplot(data.train[, "price"] ~ data.train[,"zipcode"], main = "Price vs zipcode")
@@ -204,27 +232,34 @@ boxplot(data.train[, "price"] ~ data.train[,"zipcode"], main = "Price vs zipcode
 data.train$zipcode <- as.factor(data.train$zipcode)
 # 70 여개
 table(data.train$zip) # 데이터갯수가 너무 많거나 적게 분포되어있지 않아 그대로 쓰자
+
+data.test$zipcode <- as.factor(data.test$zipcode)
+
   
 # 10. lat
 boxplot(data.train[, "price"] ~ data.train[, "lat"], main = "Price vs lat")
 # 복잡해서 그냥 뺌(zipcode가 대신)
 data.train$lat = NULL
 
+data.test$lat = NULL
+
 # 11. date 제외
 data.train$date = NULL
+
+data.test$date = NULL
 
 colnames(data.train)
 housesales.lm.final <- lm(price ~ ., data= data.train)
 
 summary(housesales.lm.final)
-# 1. Is regression model viable? (when all the values present)  
+# 1. 회귀분석은 타당한가(타당함)
 # F-statistic:  1558 on 93 and 21517 DF,  p-value: < 2.2e-16
 
-# 2. Does each independent variable influence price?
+# 2. Does each independent variable influence price?(스킵)
 
-# 3. prediction
+# 3. prediction(예측은 나중에 밑에서)
 
-# variable selection :
+# variable selection : (사실 이게 잘...여기서는 안쓰이는듯)
 # 1) FSB
 housesales.fsb <- step(housesales.lm.final, direction = "forward")
 
@@ -250,7 +285,7 @@ plot(housesales.lm.final)
 ad.test(housesales.lm.final$residuals)
 # A = 116.89, p-value < 2.2e-16
 
-# 2. 독립성 가정
+# 2. 독립성 가정 (이거 돌리면 r 꺼지니까 돌리지마세요)
 car::durbinWatsonTest(housesales.lm.final)
  # lag Autocorrelation D-W Statistic p-value
 # 1      0.01152357      1.976888   0.076
@@ -271,5 +306,7 @@ summary(gvlma::gvlma(housesales.lm.final))
 
 
 # 예측
-predict(housesales.lm.final, newdata = data.test)
+data.predict <- predict(housesales.lm.final, newdata = data.test)
 
+summary(data.predict)
+summary(data.test$price)
